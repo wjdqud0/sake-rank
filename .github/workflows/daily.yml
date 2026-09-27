@@ -1,0 +1,61 @@
+name: daily-crawl
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths: ["crawl.py", "notify.py", "secure.py", "index.html", ".github/workflows/daily.yml"]
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: daily-crawl
+  cancel-in-progress: false
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    env:
+      SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+      NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+      NTFY_EMAIL: ${{ secrets.NTFY_EMAIL }}
+      WATCH_KEYWORDS: ${{ secrets.WATCH_KEYWORDS }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q cryptography
+      - name: load history
+        run: |
+          if git fetch -q --depth=1 origin data 2>/dev/null; then
+            for f in history.enc.json history.json; do
+              if git show "origin/data:$f" > "/tmp/$f" 2>/dev/null; then mv "/tmp/$f" "data/$f"; fi
+            done
+          fi
+      - name: crawl
+        run: python crawl.py
+      - name: save history
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf /tmp/databr && mkdir -p /tmp/databr
+          cp data/history*.json /tmp/databr/
+          cd /tmp/databr
+          git init -q -b data
+          git config user.name "sake-bot"
+          git config user.email "sake-bot@users.noreply.github.com"
+          git add -A
+          git commit -qm "snapshot $(date -u +%F)"
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4
