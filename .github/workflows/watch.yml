@@ -1,0 +1,54 @@
+name: watch-restock
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      test_alert:
+        description: "test alert only"
+        type: boolean
+        default: false
+  push:
+    branches: [main, master]
+    paths: ["watch.py", "notify.py", "secure.py", "config.json", ".github/workflows/watch.yml"]
+permissions:
+  contents: read
+concurrency:
+  group: watch-restock
+  cancel-in-progress: false
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+      NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+      NTFY_EMAIL: ${{ secrets.NTFY_EMAIL }}
+      WATCH_KEYWORDS: ${{ secrets.WATCH_KEYWORDS }}
+      SOLAPI_KEY: ${{ secrets.SOLAPI_KEY }}
+      SOLAPI_SECRET: ${{ secrets.SOLAPI_SECRET }}
+      SMS_FROM: ${{ secrets.SMS_FROM }}
+      SMS_TO: ${{ secrets.SMS_TO }}
+      TEST_ALERT: ${{ inputs.test_alert }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q cryptography
+      - name: load history
+        run: |
+          mkdir -p data
+          if git fetch -q --depth=1 origin data 2>/dev/null; then
+            for f in history.enc.json history.json; do
+              if git show "origin/data:$f" > "/tmp/$f" 2>/dev/null; then mv "/tmp/$f" "data/$f"; fi
+            done
+          fi
+      - name: load state
+        uses: actions/cache@v4
+        with:
+          path: state
+          key: watch-state-${{ github.run_id }}
+          restore-keys: watch-state-
+      - name: check and notify
+        run: python watch.py
