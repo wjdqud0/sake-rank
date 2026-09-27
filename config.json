@@ -1,0 +1,14 @@
+{
+  "ntfy_topic": "",
+  "keywords": [
+    "키레이",
+    "아카부",
+    "우부스나",
+    "더블유"
+  ],
+  "fast_hours": 72,
+  "notify_all_new": false,
+  "price_drop_pct": 5,
+  "daily_report": true,
+  "email": ""
+}

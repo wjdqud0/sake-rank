@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAKELOVER 좋아요 랭킹</title>
+<meta name="theme-color" content="#1f3a5f">
+<meta name="robots" content="noindex, nofollow">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="사케랭킹">
+<style>
+:root{--ai:#1f3a5f;--paper:#fbfaf7;--ink:#22252a;--mute:#6b7280;--line:#e4e1da;--heart:#d6334a;--up:#0f7b4f}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 "Pretendard","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--ai);color:#fff;padding:14px 14px 12px}
+h1{margin:0 0 10px;font-size:19px;font-weight:800}
+input{width:100%;padding:10px 12px;border:0;border-radius:6px;font-size:16px}
+.row{display:flex;gap:6px;margin-top:8px;overflow-x:auto;scrollbar-width:none}
+.row::-webkit-scrollbar{display:none}
+.chip{flex:1 0 auto;padding:8px 12px;border-radius:6px;border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;font-size:14px;cursor:pointer;white-space:nowrap}
+.chip[aria-pressed=true]{background:#fff;color:var(--ai);border-color:#fff;font-weight:700}
+.chip:focus-visible,input:focus-visible{outline:2px solid #ffd166;outline-offset:2px}
+#status{padding:9px 14px;font-size:13px;color:var(--mute);border-bottom:1px solid var(--line)}
+#status.err{color:#b42318;background:#fef3f2}
+#hint{padding:8px 14px;font-size:13px;background:#fff8e6;color:#7a5b00;border-bottom:1px solid var(--line)}
+main{padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;max-width:1200px;margin:0 auto}
+a.card{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+a.card:hover{border-color:var(--ai)}
+.top{display:flex;justify-content:space-between;align-items:baseline;padding:8px 10px}
+.rank{font-weight:800;color:var(--ai)}
+.likes{font-weight:800;color:var(--heart);font-variant-numeric:tabular-nums}
+.card img{display:block;width:100%;aspect-ratio:1;object-fit:contain;background:#f3f2ee}
+.card.is-sold img{opacity:.45}
+.info{padding:8px 10px 11px}
+.name{font-size:14px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;min-height:3.9em}
+.price{font-weight:700;margin-top:4px}
+.badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.b{font-size:11px;padding:2px 6px;border-radius:4px;background:#f1efe9;color:#444;font-variant-numeric:tabular-nums}
+.b.up{background:#e7f5ee;color:var(--up);font-weight:700}
+.b.fast{background:#fdecee;color:#b42318;font-weight:700}
+.b.sold{background:#b42318;color:#fff}
+.b.new{background:#1f3a5f;color:#fff;font-weight:700}
+.b.down{background:#e8f0fe;color:#1a56db;font-weight:700}
+.card{position:relative}
+.fav{position:absolute;right:6px;top:40px;width:34px;height:34px;border:0;border-radius:50%;background:rgba(255,255,255,.9);font-size:18px;cursor:pointer;color:#b8b2a6;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.fav.on{color:#e0a800}
+.spark{display:block;margin-top:6px}
+a.chip{text-decoration:none;text-align:center}
+#lock{position:fixed;inset:0;z-index:20;background:var(--paper);display:flex;align-items:center;justify-content:center;padding:20px}
+#lock[hidden]{display:none}
+#lock-form{width:100%;max-width:340px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:22px}
+#lock-form h2{margin:0 0 6px;font-size:19px;color:var(--ai)}
+#lock-form p{margin:0 0 12px;font-size:14px;color:var(--mute)}
+#lock-form input[type=password]{border:1px solid var(--line);margin-bottom:10px}
+#lock-form label{display:flex;gap:6px;align-items:center;font-size:14px;margin-bottom:12px}
+#lock-form button{width:100%;padding:11px;border:0;border-radius:6px;background:var(--ai);color:#fff;font-size:16px;font-weight:700;cursor:pointer}
+#lock-err{color:#b42318!important;margin:10px 0 0!important;min-height:1em}
+#alerts{border-bottom:1px solid var(--line);background:#fff}
+#alerts summary{padding:10px 14px;font-size:14px;font-weight:700;color:var(--ai);cursor:pointer}
+#alerts ul{list-style:none;margin:0;padding:0 14px 10px}
+#alerts li{padding:8px 0;border-top:1px solid var(--line);font-size:13px}
+#alerts li a{color:var(--ink);font-weight:700;text-decoration:none}
+#alerts time{color:var(--mute);font-size:12px;margin-left:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>SAKELOVER 좋아요 랭킹</h1>
+  <input type="search" id="q" placeholder="상품명 검색" aria-label="상품명 검색">
+  <div class="row" role="group" aria-label="정렬">
+    <button class="chip" data-sort="likes" aria-pressed="true">좋아요순</button>
+    <button class="chip" data-sort="hot" aria-pressed="false">급상승</button>
+    <button class="chip" data-sort="fast" aria-pressed="false">빨리 품절</button>
+    <button class="chip" data-sort="price_asc" aria-pressed="false">낮은 가격</button>
+    <button class="chip" data-sort="price_desc" aria-pressed="false">높은 가격</button>
+  </div>
+  <div class="row" role="group" aria-label="종류">
+    <button class="chip" data-cat="" aria-pressed="true">전체</button>
+    <button class="chip" data-cat="사케" aria-pressed="false">사케</button>
+    <button class="chip" data-cat="소주" aria-pressed="false">소주</button>
+    <button class="chip" data-cat="기타" aria-pressed="false">기타</button>
+    <button class="chip" id="only-fav" aria-pressed="false">★ 찜</button>
+  </div>
+  <div class="row"><button class="chip" id="hide-sold" aria-pressed="true">품절 제외</button>
+    <a class="chip" id="bell" href="#" target="_blank" rel="noopener" hidden>🔔 폰 알림 받기</a></div>
+</header>
+<div id="lock" hidden>
+  <form id="lock-form" autocomplete="on">
+    <h2>🔒 비밀번호</h2>
+    <p>알려받은 비밀번호를 입력하세요.</p>
+    <input type="text" name="username" value="sakelover" autocomplete="username" hidden>
+    <input type="password" id="pw" autocomplete="current-password" placeholder="비밀번호" aria-label="비밀번호" required>
+    <label><input type="checkbox" id="remember" checked> 이 기기에서 기억하기</label>
+    <button type="submit" id="unlock">열기</button>
+    <p id="lock-err" role="alert"></p>
+  </form>
+</div>
+<div id="status" role="status">불러오는 중…</div>
+<details id="alerts" hidden><summary id="alerts-sum">최근 입고 알림</summary><ul id="alerts-list"></ul></details>
+<div id="hint" hidden></div>
+<main id="list"></main>
+<script>
+const S = {all: [], q: '', sort: 'likes', hideSold: true, meta: null, cat: '', onlyFav: false};
+// 찜 목록은 이 기기 브라우저에만 저장
+let FAV = new Set();
+try { FAV = new Set(JSON.parse(localStorage.getItem('sake_fav') || '[]')); } catch (e) {}
+const saveFav = () => { try { localStorage.setItem('sake_fav', JSON.stringify([...FAV])); } catch (e) {} };
+function sparkSvg(v) {
+  if (!v || v.length < 2) return '';
+  const min = Math.min(...v), max = Math.max(...v), w = 120, h = 24, r = max - min || 1;
+  const pts = v.map((x, i) => `${(i / (v.length - 1) * w).toFixed(1)},${(h - 2 - (x - min) / r * (h - 4)).toFixed(1)}`).join(' ');
+  return `<svg class="spark" width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-label="좋아요 추이"><polyline points="${pts}" fill="none" stroke="#d6334a" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>`;
+}
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const n = v => Number(v).toLocaleString('ko-KR');
+const hot = p => p.g7 ?? p.g1 ?? -1;
+const dur = h => h < 48 ? `${Math.max(1, Math.round(h))}시간` : `${Math.round(h / 24)}일`;
+const SORTS = {
+  likes: (a, b) => b.likes - a.likes,
+  hot: (a, b) => hot(b) - hot(a) || b.likes - a.likes,
+  // 입고→품절이 짧을수록, 품절 횟수가 많을수록 위. 품절 이력 없으면 급상승 순으로 뒤에
+  fast: (a, b) => ((a.so_avg_h ?? 1e9) - (b.so_avg_h ?? 1e9)) || (b.so_cnt - a.so_cnt) || (hot(b) - hot(a)),
+  price_asc: (a, b) => (a.price ?? 1e12) - (b.price ?? 1e12),
+  price_desc: (a, b) => (b.price ?? -1) - (a.price ?? -1),
+};
+function render() {
+  const q = S.q.trim().toLowerCase();
+  const base = S.all.filter(p => (!S.hideSold || !p.soldout) && (!S.cat || p.cat === S.cat)).map((p, i) => ({...p, rank: i + 1}));
+  const rows = base.filter(p => (!q || (p.name || '').toLowerCase().includes(q)) && (!S.onlyFav || FAV.has(p.no))).sort(SORTS[S.sort]);
+  $('#list').innerHTML = rows.map(p => {
+    const b = [];
+    if (p.soldout) b.push('<span class="b sold">품절</span>');
+    if (p.new) b.push('<span class="b new">NEW</span>');
+    if (p.price_prev && p.price != null) {
+      const pct = Math.round((p.price - p.price_prev) / p.price_prev * 100);
+      if (pct) b.push(`<span class="b ${pct < 0 ? 'down' : ''}">가격 ${pct < 0 ? '▼' : '▲'}${Math.abs(pct)}%</span>`);
+    }
+    const sg = v => (v > 0 ? '+' : v < 0 ? '−' : '±') + n(Math.abs(v));
+    if (p.g7 != null) b.push(`<span class="b ${p.g7 > 0 ? 'up' : ''}">7일 ${sg(p.g7)}</span>`);
+    else if (p.g1 != null) b.push(`<span class="b ${p.g1 > 0 ? 'up' : ''}">1일 ${sg(p.g1)}</span>`);
+    if (p.so_cnt) b.push(`<span class="b fast">품절 ${p.so_cnt}회${p.so_avg_h != null ? ' · 평균 ' + dur(p.so_avg_h) : ''}</span>`);
+    return `<a class="card${p.soldout ? ' is-sold' : ''}" href="${esc(p.url)}" target="_blank" rel="noopener">
+      <button class="fav${FAV.has(p.no) ? ' on' : ''}" data-no="${p.no}" aria-label="찜" aria-pressed="${FAV.has(p.no)}">★</button>
+      <div class="top"><span class="rank">${p.rank}위</span><span class="likes">❤️ ${n(p.likes)}</span></div>
+      ${p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}
+      <div class="info"><div class="name">${esc(p.name)}</div>
+      <div class="price">${p.price != null ? '₩' + n(p.price) : ''}</div>
+      ${b.length ? `<div class="badges">${b.join('')}</div>` : ''}${sparkSvg(p.spark)}</div></a>`;
+  }).join('') || `<p style="padding:20px;color:#6b7280">${S.onlyFav && !FAV.size ? '상품 카드의 ★을 눌러 찜하세요.' : '조건에 맞는 상품이 없습니다.'}</p>`;
+  const h = $('#hint'), m = S.meta;
+  if ((S.sort === 'hot' || S.sort === 'fast') && m.snapshots < 8) {
+    h.hidden = false;
+    h.textContent = `매일 1회 기록 중 (${m.snapshots}일째). 급상승은 2일째부터, 7일 증가량·품절 속도는 기록이 쌓일수록 정확해집니다.`;
+  } else h.hidden = true;
+}
+function start(d) {
+  S.all = d.items; S.meta = d;
+  const st = $('#status'), age = Date.now() / 1000 - d.updated_at;
+  st.textContent = `상품 ${n(d.total)}개 · 좋아요 확인 ${n(d.with_likes)}개 · 업데이트 ${new Date(d.updated_at * 1000).toLocaleString('ko-KR')} · 매일 오전 9시 자동 갱신`;
+  if (age > 36 * 3600) { st.classList.add('err'); st.textContent += ` · ⚠️ ${Math.floor(age / 86400)}일 넘게 갱신되지 않았습니다`; }
+  render();
+  if (d.ntfy_topic) {
+    const bell = $('#bell'); bell.hidden = false; bell.href = 'https://ntfy.sh/' + encodeURIComponent(d.ntfy_topic);
+    loadAlerts(d.ntfy_topic);
+  }
+}
+// 암호화 데이터 풀기 (서버 crawl.py/secure.py 와 같은 규격: PBKDF2-SHA256 → AES-256-GCM)
+async function decryptBlob(blob, pw) {
+  const b = x => Uint8Array.from(atob(x), c => c.charCodeAt(0));
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey({name: 'PBKDF2', salt: b(blob.salt), iterations: blob.iter || 200000, hash: 'SHA-256'},
+    base, {name: 'AES-GCM', length: 256}, false, ['decrypt']);
+  const pt = await crypto.subtle.decrypt({name: 'AES-GCM', iv: b(blob.iv)}, key, b(blob.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+const PW_KEY = 'sake_pw_' + location.pathname;
+async function boot() {
+  const st = $('#status');
+  try {
+    const r = await fetch('data.enc.json?t=' + Date.now(), {cache: 'no-store'});
+    if (!r.ok) return start(await fetch('data.json?t=' + Date.now(), {cache: 'no-store'}).then(x => x.json()));
+    const blob = await r.json();
+    let saved = null; try { saved = localStorage.getItem(PW_KEY); } catch (e) {}
+    if (saved) { try { return start(await decryptBlob(blob, saved)); } catch (e) { try { localStorage.removeItem(PW_KEY); } catch (e2) {} } }
+    st.textContent = '비밀번호가 필요합니다';
+    $('#lock').hidden = false; $('#pw').focus();
+    $('#lock-form').onsubmit = async e => {
+      e.preventDefault();
+      const pw = $('#pw').value; $('#unlock').disabled = true; $('#lock-err').textContent = '';
+      try {
+        const d = await decryptBlob(blob, pw);
+        if ($('#remember').checked) { try { localStorage.setItem(PW_KEY, pw); } catch (e2) {} }
+        $('#lock').hidden = true; start(d); addLockBtn();
+      } catch (err) { $('#lock-err').textContent = '비밀번호가 틀렸습니다'; $('#pw').select(); }
+      $('#unlock').disabled = false;
+    };
+    return;
+  } catch (e) { st.classList.add('err'); st.textContent = '데이터를 불러오지 못했습니다: ' + e.message; }
+}
+function addLockBtn() {
+  if ($('#logout')) return;
+  const b = document.createElement('button'); b.className = 'chip'; b.id = 'logout'; b.textContent = '🔒 잠그기';
+  b.onclick = () => { try { localStorage.removeItem(PW_KEY); } catch (e) {} location.reload(); };
+  $('#hide-sold').parentNode.appendChild(b);
+}
+boot().then(() => { if (S.meta && S.meta && (() => { try { return localStorage.getItem(PW_KEY); } catch (e) { return null; } })()) addLockBtn(); });
+// 최근 3일 알림을 ntfy에서 직접 읽어 표시 (추가 서버 불필요)
+async function loadAlerts(topic) {
+  try {
+    const txt = await fetch(`https://ntfy.sh/${encodeURIComponent(topic)}/json?poll=1&since=3d`).then(r => r.text());
+    const msgs = txt.split('\n').filter(Boolean).map(l => JSON.parse(l)).filter(m => m.event === 'message' && m.click).reverse().slice(0, 30);
+    if (!msgs.length) return;
+    $('#alerts').hidden = false;
+    $('#alerts-sum').textContent = `최근 입고 알림 ${msgs.length}건 (3일)`;
+    $('#alerts-list').innerHTML = msgs.map(m => `<li><a href="${esc(m.click)}" target="_blank" rel="noopener">${esc(m.title)}</a>
+      <time>${new Date(m.time * 1000).toLocaleString('ko-KR', {month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'})}</time>
+      <div>${esc(m.message)}</div></li>`).join('');
+  } catch (e) { /* 알림 목록은 부가 기능이라 실패해도 무시 */ }
+}
+$('#list').addEventListener('click', e => {
+  const f = e.target.closest('.fav'); if (!f) return;
+  e.preventDefault(); e.stopPropagation();
+  const no = +f.dataset.no; FAV.has(no) ? FAV.delete(no) : FAV.add(no); saveFav(); render();
+});
+document.querySelectorAll('[data-cat]').forEach(b => b.addEventListener('click', () => {
+  S.cat = b.dataset.cat;
+  document.querySelectorAll('[data-cat]').forEach(x => x.setAttribute('aria-pressed', x === b));
+  render();
+}));
+$('#only-fav').addEventListener('click', e => { S.onlyFav = !S.onlyFav; e.target.setAttribute('aria-pressed', S.onlyFav); render(); });
+$('#q').addEventListener('input', e => { S.q = e.target.value; render(); });
+$('#hide-sold').addEventListener('click', e => { S.hideSold = !S.hideSold; e.target.setAttribute('aria-pressed', S.hideSold); render(); });
+document.querySelectorAll('[data-sort]').forEach(b => b.addEventListener('click', () => {
+  S.sort = b.dataset.sort;
+  document.querySelectorAll('[data-sort]').forEach(x => x.setAttribute('aria-pressed', x === b));
+  render();
+}));
+</script>
+</body>
+</html>
